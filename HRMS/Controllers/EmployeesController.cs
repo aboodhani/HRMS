@@ -4,6 +4,7 @@ using HRMS.Models;
 using Microsoft.CodeAnalysis.Elfie.Diagnostics;
 using HRMS.Dtos.Employees;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace HRMS.Controllers
 {
     [Route("api/[controller]")] // Data Annotation   
@@ -42,7 +43,7 @@ namespace HRMS.Controllers
         }
 
         [HttpGet("GetById/{id}")] // Route parameter 
-        public IActionResult GetById(long Id)
+        public IActionResult GetById(long Id) // get by id 
         {
             if (Id == 0)
             {
