@@ -9,6 +9,10 @@
         public string? Email { get; set; } // optional / nullable 
         public string? Position { get; set; }
         public DateTime? BirthDate { get; set; }
+        public decimal? Salary { get;  set; }
+        public long? ManagerId { get; internal set; }
+        public long? DepartmentId { get; internal set; }
+        public string? DepartmentName { get; internal set; }
     }
     }
 

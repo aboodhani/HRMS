@@ -5,6 +5,9 @@ using Microsoft.CodeAnalysis.Elfie.Diagnostics;
 using HRMS.Dtos.Employees;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using HRMS.DbContexts;
+
+// Nuget Package
 namespace HRMS.Controllers
 {
     [Route("api/[controller]")] // Data Annotation   
@@ -13,7 +16,7 @@ namespace HRMS.Controllers
     {
         public static List<Employee> emplyoees = new List<Employee>()
         {
-
+        
         new Employee() {Id=1 ,FirstName = "Ahmad"  ,LastName = "salameh" ,Email="aboodhani373@gmail.com",Position = "Developer", BirthDate = new DateTime(2000,1,25)},
         new Employee() {Id=2 ,FirstName = "layla"  ,LastName = "attyat"  ,Email="ahmdsamr@gmail.com"    , Position = "Developer", BirthDate = new DateTime(2004,5,12)},
         new Employee() {Id=3 ,FirstName = "saleem" ,LastName = "tarifi"  , Position = "HR",BirthDate = new DateTime(1999,1,30)},
@@ -21,13 +24,22 @@ namespace HRMS.Controllers
         new Employee() {Id=5 ,FirstName = "abood"  ,LastName = "salahat" , Position = "Backend", BirthDate = new DateTime(1989,12,31)},
 
         };
+        // Dependency injection 
+        private readonly HRMSContext _dbContext;
+        public EmployeesController(HRMSContext dbContext)
+        {
+            _dbContext = dbContext;
+        }
+
+
 
         // CRUD operation 
 
         [HttpGet("GetByCriteria")] // (data annotation) Method --> api Endpoint
         public IActionResult GetByCriteria ( [FromQuery] SerchEmployeeDto employeeDto) // this is called query parameter
         {
-            var result = from employee in emplyoees
+            var result = from employee in _dbContext.Employees 
+                         from Department in _dbContext.Departments.Where(x => x.Id == employee.DepartmentId).DefaultIfEmpty() // left join 
                          where (employeeDto.Position == null || employee.Position.ToUpper().Contains(employeeDto.Position.ToUpper()) ) &&
                                 (employeeDto.Name == null || employee.FirstName.ToUpper().Contains(employeeDto.Name.ToUpper())) // to upper to avoid the uppercase edges and Contains for typing an instance of the word and find it 
                          orderby employee.Id descending
@@ -37,10 +49,17 @@ namespace HRMS.Controllers
                              Name = employee.FirstName + " " + employee.LastName,
                              Position = employee.Position,
                              BirthDate = employee.BirthDate,
-                             Email = employee.Email
+                             Email = employee.Email,
+                             Salary = employee.Salary,
+                             DepartmentId = employee.DepartmentId,
+                             DepartmentName = Department.Name,
+                             ManagerId = employee.ManagerId
+                             
                          };
             return Ok(result);
         }
+
+
 
         [HttpGet("GetById/{id}")] // Route parameter 
         public IActionResult GetById(long Id) // get by id 

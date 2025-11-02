@@ -30,6 +30,7 @@ namespace HRMS.Controllers
             return Ok(result);
         }
 
+        
         [HttpGet("GetById/{id}")] // route parameter 
         public IActionResult GetById(long id)
         {
@@ -90,7 +91,7 @@ namespace HRMS.Controllers
             return Ok();
         }
 
-
+       
     }
 
 
