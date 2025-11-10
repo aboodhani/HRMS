@@ -6,7 +6,10 @@
         public string FirstName { get; set; }
         public string LastName { get; set; }
         public string? Email { get; set; } // optional / nullable 
-        public string Position { get; set; }
+        public string? Position { get; set; }
         public DateTime? BirthDate { get; set; }
+        public decimal Salary { get; set; }
+        public long? ManagerId { get;  set; }
+        public long? DepartmentId { get;  set; }
     }
 }

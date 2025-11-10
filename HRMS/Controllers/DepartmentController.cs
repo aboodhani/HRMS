@@ -11,9 +11,9 @@ namespace HRMS.Controllers
     [ApiController]
     public class DepartmentController : ControllerBase
     {
+
         public List<Department> departments = new List<Department>()
         {
-
         new Department() { Id = 1 , Name = "IT" , Description = "It consultaion", FloorNumber = 5},
         new Department() { Id = 2 , Name = "Services" , Description = "Services consultaion", FloorNumber = 4},
         new Department() { Id = 3 , Name = "HR" , Description = "HR consultaion", FloorNumber = 2},

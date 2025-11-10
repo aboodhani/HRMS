@@ -13,6 +13,7 @@
         public long? ManagerId { get; internal set; }
         public long? DepartmentId { get; internal set; }
         public string? DepartmentName { get; internal set; }
+        public string? ManagerName { get; internal set; }
     }
     }
 

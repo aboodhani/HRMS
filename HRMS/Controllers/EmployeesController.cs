@@ -9,23 +9,22 @@ using HRMS.DbContexts;
 
 // Nuget Package
 namespace HRMS.Controllers
-{
+{      
+       
+       // HTTP Get : Can not use body request [from body], We can Only use Query Parameters 
+       // HTTP post/put : Can use Both Body and Query, But We will always use [from body]
+       // HTTP Delete : Can use Both Body Request and Query Request but we will always use [from query]
+       
     [Route("api/[controller]")] // Data Annotation   
     [ApiController] // Data Annotation
     public class EmployeesController : ControllerBase
     {
-        public static List<Employee> emplyoees = new List<Employee>()
-        {
-        
-        new Employee() {Id=1 ,FirstName = "Ahmad"  ,LastName = "salameh" ,Email="aboodhani373@gmail.com",Position = "Developer", BirthDate = new DateTime(2000,1,25)},
-        new Employee() {Id=2 ,FirstName = "layla"  ,LastName = "attyat"  ,Email="ahmdsamr@gmail.com"    , Position = "Developer", BirthDate = new DateTime(2004,5,12)},
-        new Employee() {Id=3 ,FirstName = "saleem" ,LastName = "tarifi"  , Position = "HR",BirthDate = new DateTime(1999,1,30)},
-        new Employee() {Id=4 ,FirstName = "omar"   ,LastName = "alqady"  , Position = "QA", BirthDate = new DateTime(2005,8,24)},
-        new Employee() {Id=5 ,FirstName = "abood"  ,LastName = "salahat" , Position = "Backend", BirthDate = new DateTime(1989,12,31)},
 
-        };
+        
         // Dependency injection 
+        // creating a general object to pass the info to any class that request  
         private readonly HRMSContext _dbContext;
+
         public EmployeesController(HRMSContext dbContext)
         {
             _dbContext = dbContext;
@@ -38,9 +37,10 @@ namespace HRMS.Controllers
         [HttpGet("GetByCriteria")] // (data annotation) Method --> api Endpoint
         public IActionResult GetByCriteria ( [FromQuery] SerchEmployeeDto employeeDto) // this is called query parameter
         {
-            var result = from employee in _dbContext.Employees 
+            var result = from employee in _dbContext.Employees
                          from Department in _dbContext.Departments.Where(x => x.Id == employee.DepartmentId).DefaultIfEmpty() // left join 
-                         where (employeeDto.Position == null || employee.Position.ToUpper().Contains(employeeDto.Position.ToUpper()) ) &&
+                         from manager in _dbContext.Employees.Where(x => x.Id == employee.ManagerId).DefaultIfEmpty()
+                         where (employeeDto.Position == null || employee.Position.ToUpper().Contains(employeeDto.Position.ToUpper())) &&
                                 (employeeDto.Name == null || employee.FirstName.ToUpper().Contains(employeeDto.Name.ToUpper())) // to upper to avoid the uppercase edges and Contains for typing an instance of the word and find it 
                          orderby employee.Id descending
                          select new EmployeeDto
@@ -53,35 +53,41 @@ namespace HRMS.Controllers
                              Salary = employee.Salary,
                              DepartmentId = employee.DepartmentId,
                              DepartmentName = Department.Name,
-                             ManagerId = employee.ManagerId
-                             
+                             ManagerId = employee.ManagerId, 
+                             ManagerName = manager.FirstName
                          };
+
             return Ok(result);
         }
 
 
 
-        [HttpGet("GetById/{id}")] // Route parameter 
-        public IActionResult GetById(long Id) // get by id 
-        {
-            if (Id == 0)
-            {
-                return BadRequest("Id Value is invalid");
-            }
 
-            var result = emplyoees.Select(x => new EmployeeDto
-            {
-                Id = x.Id,
-                Name = x.FirstName + " " + x.LastName,
-                Position = x.Position,
-                BirthDate = x.BirthDate,
-                Email = x.Email
-            }).FirstOrDefault(x => x.Id == Id); // the arrow => is WHERE 
+        [HttpGet("GetById/{id:long}")]
+        public IActionResult GetById(long id)
+        {
+            if (id <= 0)
+                return BadRequest("Id Value is invalid");
+
+            var result = _dbContext.Employees
+                .Where(e => e.Id == id)
+                .Select(x => new EmployeeDto
+                {
+                    Id = x.Id,
+                    Name = x.FirstName + " " + x.LastName,
+                    Position = x.Position,
+                    BirthDate = x.BirthDate,
+                    Email = x.Email,
+                    Salary = x.Salary,
+                    DepartmentId = x.DepartmentId,
+                    DepartmentName = "",
+                    ManagerId = x.ManagerId,
+                    ManagerName = ""
+                })
+                .FirstOrDefault();
 
             if (result == null)
-            {
                 return NotFound("Employee is not found");
-            }
 
             return Ok(result);
         }
@@ -93,22 +99,29 @@ namespace HRMS.Controllers
         {
             var emp = new Employee() // here we make an object from the model because the list is from type Employee and we put in it the Dto details 
             {
-                Id = (emplyoees.LastOrDefault()?.Id ?? 0) + 1,
+                Id = 0,//(emplyoees.LastOrDefault()?.Id ?? 0) + 1,
                 FirstName = employeeDto.FirstName,
                 LastName = employeeDto.LastName,
                 Email = employeeDto.Email,
                 BirthDate = employeeDto.BirthDate,
-                Position = employeeDto.Position
+                Position = employeeDto.Position,
+                Salary = employeeDto.Salary,
+                DepartmentId = employeeDto.DepartmentId, 
+                ManagerId = employeeDto.ManagerId
             };
-            emplyoees.Add(emp); // here we added the emp (from type model) but the info from the dto and add it to the list 
 
-            return Ok();
+            _dbContext.Employees.Add(emp); // here we added the emp (from type model) but the info from the dto and add it to the list 
+            _dbContext.SaveChanges(); // saving changes (commit)
+
+            return Ok(); 
         }
+
+
 
         [HttpPut("Edit")]
         public IActionResult Edit([FromBody] SaveEmployeeDto employeeDto) // same parameter as the post method
         {
-            var emplyoee = emplyoees.FirstOrDefault(x => x.Id == employeeDto.Id); // get the id to update its information 
+            var emplyoee = _dbContext.Employees.FirstOrDefault(x => x.Id == employeeDto.Id); // get the id to update its information 
 
             if (emplyoee == null)                                                  
                 return NotFound("employee doesn't exist");
@@ -118,22 +131,31 @@ namespace HRMS.Controllers
             emplyoee.Email = employeeDto.Email;
             emplyoee.BirthDate = employeeDto.BirthDate;
             emplyoee.Position = employeeDto.Position;
+            emplyoee.Salary = employeeDto.Salary;
+            emplyoee.DepartmentId = employeeDto.DepartmentId;
+            emplyoee.ManagerId = employeeDto.ManagerId;
+
+            _dbContext.SaveChanges();
             return Ok("Your information has been successfully updated");
 
         }
 
+
+
+
+
         [HttpDelete("Delete")]
-        public IActionResult Delete( [FromBody] int id)
+        public IActionResult Delete( int id)
         {
-            var employee = emplyoees.FirstOrDefault(x => x.Id == id);
+            var employee = _dbContext.Employees.FirstOrDefault(x => x.Id == id);
 
             if (employee == null)
             {
                 return NotFound();
             }
 
-            emplyoees.Remove(employee);
-            
+            _dbContext.Employees.Remove(employee);
+            _dbContext.SaveChanges();
             return Ok();
         }
 
