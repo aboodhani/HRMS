@@ -35,19 +35,22 @@ namespace HRMS.Controllers
         // CRUD operation 
 
         [HttpGet("GetByCriteria")] // (data annotation) Method --> api Endpoint
-        public IActionResult GetByCriteria ( [FromQuery] SerchEmployeeDto employeeDto) // this is called query parameter
+        public IActionResult GetByCriteria ( [FromQuery] SearchEmployeeDto employeeDto) // this is called query parameter
         {
             var result = from employee in _dbContext.Employees
                          from Department in _dbContext.Departments.Where(x => x.Id == employee.DepartmentId).DefaultIfEmpty() // left join 
                          from manager in _dbContext.Employees.Where(x => x.Id == employee.ManagerId).DefaultIfEmpty()
-                         where (employeeDto.Position == null || employee.Position.ToUpper().Contains(employeeDto.Position.ToUpper())) &&
-                                (employeeDto.Name == null || employee.FirstName.ToUpper().Contains(employeeDto.Name.ToUpper())) // to upper to avoid the uppercase edges and Contains for typing an instance of the word and find it 
+                         from lookup in _dbContext.Lookups.Where(x => x.Id == employee.PositionId) // no left join because it's required to have a positionId 
+                         where 
+                        (employeeDto.PositionId == null || employee.PositionId == employeeDto.PositionId) &&
+                         (employeeDto.Name == null || employee.FirstName.ToUpper().Contains(employeeDto.Name.ToUpper())) // to upper to avoid the uppercase edges and Contains for typing an instance of the word and find it 
                          orderby employee.Id descending
                          select new EmployeeDto
                          {
                              Id = employee.Id,
                              Name = employee.FirstName + " " + employee.LastName,
-                             Position = employee.Position,
+                             PositionId = employee.PositionId,
+                             PositionName = lookup.Name,
                              BirthDate = employee.BirthDate,
                              Email = employee.Email,
                              Salary = employee.Salary,
@@ -75,14 +78,15 @@ namespace HRMS.Controllers
                 {
                     Id = x.Id,
                     Name = x.FirstName + " " + x.LastName,
-                    Position = x.Position,
+                    PositionId = x.PositionId,
+                    PositionName = x.Lookup.Name,
                     BirthDate = x.BirthDate,
                     Email = x.Email,
                     Salary = x.Salary,
                     DepartmentId = x.DepartmentId,
-                    DepartmentName = "",
+                    DepartmentName = x.Department.Name,
                     ManagerId = x.ManagerId,
-                    ManagerName = ""
+                    ManagerName = x.manager.FirstName
                 })
                 .FirstOrDefault();
 
@@ -104,7 +108,7 @@ namespace HRMS.Controllers
                 LastName = employeeDto.LastName,
                 Email = employeeDto.Email,
                 BirthDate = employeeDto.BirthDate,
-                Position = employeeDto.Position,
+                PositionId = employeeDto.PositionId,
                 Salary = employeeDto.Salary,
                 DepartmentId = employeeDto.DepartmentId, 
                 ManagerId = employeeDto.ManagerId
@@ -130,7 +134,7 @@ namespace HRMS.Controllers
             emplyoee.LastName = employeeDto.LastName;
             emplyoee.Email = employeeDto.Email;
             emplyoee.BirthDate = employeeDto.BirthDate;
-            emplyoee.Position = employeeDto.Position;
+            emplyoee.PositionId = employeeDto.PositionId;
             emplyoee.Salary = employeeDto.Salary;
             emplyoee.DepartmentId = employeeDto.DepartmentId;
             emplyoee.ManagerId = employeeDto.ManagerId;

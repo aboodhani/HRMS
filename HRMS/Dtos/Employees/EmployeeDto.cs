@@ -7,7 +7,8 @@
         
         public string? Name { get; set; }
         public string? Email { get; set; } // optional / nullable 
-        public string? Position { get; set; }
+        public long? PositionId { get; set; }
+        public string? PositionName { get; set; }
         public DateTime? BirthDate { get; set; }
         public decimal? Salary { get;  set; }
         public long? ManagerId { get; internal set; }
