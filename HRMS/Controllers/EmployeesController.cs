@@ -6,6 +6,7 @@ using HRMS.Dtos.Employees;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using HRMS.DbContexts;
+using Microsoft.EntityFrameworkCore;
 
 // Nuget Package
 namespace HRMS.Controllers
@@ -15,6 +16,10 @@ namespace HRMS.Controllers
        // HTTP post/put : Can use Both Body and Query, But We will always use [from body]
        // HTTP Delete : Can use Both Body Request and Query Request but we will always use [from query]
        
+
+       // anything we receive or send to the user must be from the Dto and not the model 
+
+
     [Route("api/[controller]")] // Data Annotation   
     [ApiController] // Data Annotation
     public class EmployeesController : ControllerBase
@@ -37,30 +42,37 @@ namespace HRMS.Controllers
         [HttpGet("GetByCriteria")] // (data annotation) Method --> api Endpoint
         public IActionResult GetByCriteria ( [FromQuery] SearchEmployeeDto employeeDto) // this is called query parameter
         {
-            var result = from employee in _dbContext.Employees
-                         from Department in _dbContext.Departments.Where(x => x.Id == employee.DepartmentId).DefaultIfEmpty() // left join 
-                         from manager in _dbContext.Employees.Where(x => x.Id == employee.ManagerId).DefaultIfEmpty()
-                         from lookup in _dbContext.Lookups.Where(x => x.Id == employee.PositionId) // no left join because it's required to have a positionId 
-                         where 
-                        (employeeDto.PositionId == null || employee.PositionId == employeeDto.PositionId) &&
-                         (employeeDto.Name == null || employee.FirstName.ToUpper().Contains(employeeDto.Name.ToUpper())) // to upper to avoid the uppercase edges and Contains for typing an instance of the word and find it 
-                         orderby employee.Id descending
-                         select new EmployeeDto
-                         {
-                             Id = employee.Id,
-                             Name = employee.FirstName + " " + employee.LastName,
-                             PositionId = employee.PositionId,
-                             PositionName = lookup.Name,
-                             BirthDate = employee.BirthDate,
-                             Email = employee.Email,
-                             Salary = employee.Salary,
-                             DepartmentId = employee.DepartmentId,
-                             DepartmentName = Department.Name,
-                             ManagerId = employee.ManagerId, 
-                             ManagerName = manager.FirstName
-                         };
+            try
+            {
+                var result = from employee in _dbContext.Employees
+                             from Department in _dbContext.Departments.Where(x => x.Id == employee.DepartmentId).DefaultIfEmpty() // left join 
+                             from manager in _dbContext.Employees.Where(x => x.Id == employee.ManagerId).DefaultIfEmpty()
+                             from lookup in _dbContext.Lookups.Where(x => x.Id == employee.PositionId) // no left join because it's required to have a positionId 
+                             where
+                            (employeeDto.PositionId == null || employee.PositionId == employeeDto.PositionId) &&
+                             (employeeDto.Name == null || employee.FirstName.ToUpper().Contains(employeeDto.Name.ToUpper())) // to upper to avoid the uppercase edges and Contains for typing an instance of the word and find it 
+                             orderby employee.Id descending
+                             select new EmployeeDto
+                             {
+                                 Id = employee.Id,
+                                 Name = employee.FirstName + " " + employee.LastName,
+                                 PositionId = employee.PositionId,
+                                 PositionName = lookup.Name,
+                                 BirthDate = employee.BirthDate,
+                                 Email = employee.Email,
+                                 Salary = employee.Salary,
+                                 DepartmentId = employee.DepartmentId,
+                                 DepartmentName = Department.Name,
+                                 ManagerId = employee.ManagerId,
+                                 ManagerName = manager.FirstName
+                             };
 
-            return Ok(result);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
 
@@ -69,31 +81,44 @@ namespace HRMS.Controllers
         [HttpGet("GetById/{id:long}")]
         public IActionResult GetById(long id)
         {
-            if (id <= 0)
-                return BadRequest("Id Value is invalid");
+            try
+            {
+                if (id <= 0)
+                    return BadRequest("Id Value is invalid");
 
-            var result = _dbContext.Employees
-                .Where(e => e.Id == id)
-                .Select(x => new EmployeeDto
-                {
-                    Id = x.Id,
-                    Name = x.FirstName + " " + x.LastName,
-                    PositionId = x.PositionId,
-                    PositionName = x.Lookup.Name,
-                    BirthDate = x.BirthDate,
-                    Email = x.Email,
-                    Salary = x.Salary,
-                    DepartmentId = x.DepartmentId,
-                    DepartmentName = x.Department.Name,
-                    ManagerId = x.ManagerId,
-                    ManagerName = x.manager.FirstName
-                })
-                .FirstOrDefault();
+                var result = _dbContext.Employees
+                    .Where(e => e.Id == id)
+                    .Select(x => new EmployeeDto // projection using select and it's the best way to get information 
+                    {
+                        Id = x.Id,
+                        Name = x.FirstName + " " + x.LastName,
+                        PositionId = x.PositionId,
+                        PositionName = x.Lookup.Name, // join using the navigation property 
+                        BirthDate = x.BirthDate,
+                        Email = x.Email,
+                        Salary = x.Salary,
+                        DepartmentId = x.DepartmentId,
+                        DepartmentName = x.Department.Name,
+                        ManagerId = x.ManagerId,
+                        ManagerName = x.manager.FirstName
+                    })
+                    .FirstOrDefault();
 
-            if (result == null)
-                return NotFound("Employee is not found");
 
-            return Ok(result);
+                // Eager loading using Include() wich uses join 
+                var result2 = _dbContext.Employees.Include(x => x.Lookup).Include(x => x.manager).ThenInclude(x => x.Lookup).FirstOrDefault(x => x.Id.Equals(id));
+
+                // lazy loading --> ?? 
+
+                if (result == null)
+                    return NotFound("Employee is not found");
+
+                return Ok(result2);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
 
@@ -125,23 +150,35 @@ namespace HRMS.Controllers
         [HttpPut("Edit")]
         public IActionResult Edit([FromBody] SaveEmployeeDto employeeDto) // same parameter as the post method
         {
-            var emplyoee = _dbContext.Employees.FirstOrDefault(x => x.Id == employeeDto.Id); // get the id to update its information 
+         try
+            {
+                var emplyoee = _dbContext.Employees.FirstOrDefault(x => x.Id == employeeDto.Id); // get the id to update its information 
 
-            if (emplyoee == null)                                                  
-                return NotFound("employee doesn't exist");
+                if (emplyoee == null)
+                    return NotFound("Employee Does not Exist"); // we use this if even though there is a catch because we have to protect our code from being broke as much as i can 
 
-            emplyoee.FirstName = employeeDto.FirstName;
-            emplyoee.LastName = employeeDto.LastName;
-            emplyoee.Email = employeeDto.Email;
-            emplyoee.BirthDate = employeeDto.BirthDate;
-            emplyoee.PositionId = employeeDto.PositionId;
-            emplyoee.Salary = employeeDto.Salary;
-            emplyoee.DepartmentId = employeeDto.DepartmentId;
-            emplyoee.ManagerId = employeeDto.ManagerId;
+                emplyoee.FirstName = employeeDto.FirstName;
+                emplyoee.LastName = employeeDto.LastName;
+                emplyoee.Email = employeeDto.Email;
+                emplyoee.BirthDate = employeeDto.BirthDate;
+                emplyoee.PositionId = employeeDto.PositionId;
+                emplyoee.Salary = employeeDto.Salary;
+                emplyoee.DepartmentId = employeeDto.DepartmentId;
+                emplyoee.ManagerId = employeeDto.ManagerId;
 
-            _dbContext.SaveChanges();
-            return Ok("Your information has been successfully updated");
+                _dbContext.SaveChanges();
+                return Ok("Your information has been successfully updated");
+            }
 
+            catch (NullReferenceException) 
+            {
+                return NotFound("Employee doesn't Exist");
+            }  
+
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
 
@@ -149,20 +186,26 @@ namespace HRMS.Controllers
 
 
         [HttpDelete("Delete")]
-        public IActionResult Delete( int id)
+        public IActionResult Delete(int id)
         {
-            var employee = _dbContext.Employees.FirstOrDefault(x => x.Id == id);
-
-            if (employee == null)
+            try
             {
-                return NotFound();
+                var employee = _dbContext.Employees.FirstOrDefault(x => x.Id == id);
+
+                if (employee == null)
+                {
+                    return NotFound();
+                }
+
+                _dbContext.Employees.Remove(employee);
+                _dbContext.SaveChanges();
+                return Ok();
             }
-
-            _dbContext.Employees.Remove(employee);
-            _dbContext.SaveChanges();
-            return Ok();
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
-
 
 
     }

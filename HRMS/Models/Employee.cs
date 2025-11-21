@@ -5,7 +5,7 @@ namespace HRMS.Models
 {
     public class Employee
     {
-        [Key]
+        [Key] // primary key 
         public long Id { get; set; }
 
 
@@ -42,5 +42,10 @@ namespace HRMS.Models
         public long? ManagerId { get; set; }
         public Employee? manager { get; set; } // navigation property 
 
+
+
+        [ForeignKey("User")]
+        public long? UserId { get; set; }
+        public User? User { get; set; } // navigation property 
     }
 }

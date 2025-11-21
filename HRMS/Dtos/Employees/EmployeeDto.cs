@@ -11,10 +11,10 @@
         public string? PositionName { get; set; }
         public DateTime? BirthDate { get; set; }
         public decimal? Salary { get;  set; }
-        public long? ManagerId { get; internal set; }
-        public long? DepartmentId { get; internal set; }
-        public string? DepartmentName { get; internal set; }
-        public string? ManagerName { get; internal set; }
+        public long? ManagerId { get;  set; }
+        public long? DepartmentId { get;  set; }
+        public string? DepartmentName { get;  set; }
+        public string? ManagerName { get;  set; }
     }
     }
 
