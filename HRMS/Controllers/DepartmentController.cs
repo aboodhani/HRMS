@@ -1,4 +1,5 @@
-﻿using HRMS.Dtos.Department;
+﻿using HRMS.DbContexts;
+using HRMS.Dtos.Department;
 using HRMS.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -11,6 +12,14 @@ namespace HRMS.Controllers
     [ApiController]
     public class DepartmentController : ControllerBase
     {
+
+        private readonly HRMSContext _dbcontext; 
+
+        public DepartmentController (HRMSContext hRMSContext)
+        {
+            _dbcontext = hRMSContext;
+        }
+
 
         public List<Department> departments = new List<Department>()
         {

@@ -7,19 +7,21 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using HRMS.DbContexts;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
+using System.Data;
 
 // Nuget Package
 namespace HRMS.Controllers
-{      
-       
-       // HTTP Get : Can not use body request [from body], We can Only use Query Parameters 
-       // HTTP post/put : Can use Both Body and Query, But We will always use [from body]
-       // HTTP Delete : Can use Both Body Request and Query Request but we will always use [from query]
-       
+{
 
-       // anything we receive or send to the user must be from the Dto and not the model 
+    // HTTP Get : Can not use body request [from body], We can Only use Query Parameters 
+    // HTTP post/put : Can use Both Body and Query, But We will always use [from body]
+    // HTTP Delete : Can use Both Body Request and Query Request but we will always use [from query]
 
 
+    // anything we receive or send to the user must be from the Dto and not the model 
+    [Authorize]
     [Route("api/[controller]")] // Data Annotation   
     [ApiController] // Data Annotation
     public class EmployeesController : ControllerBase
@@ -44,6 +46,12 @@ namespace HRMS.Controllers
         {
             try
             {
+                // how to get the current loged in user? 
+                // we get these from token 
+                var role = User.FindFirst(ClaimTypes.Role)?.Value;
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+
                 var result = from employee in _dbContext.Employees
                              from Department in _dbContext.Departments.Where(x => x.Id == employee.DepartmentId).DefaultIfEmpty() // left join 
                              from manager in _dbContext.Employees.Where(x => x.Id == employee.ManagerId).DefaultIfEmpty()
@@ -64,8 +72,20 @@ namespace HRMS.Controllers
                                  DepartmentId = employee.DepartmentId,
                                  DepartmentName = Department.Name,
                                  ManagerId = employee.ManagerId,
-                                 ManagerName = manager.FirstName
+                                 ManagerName = manager.FirstName,
+                                 UserId = employee.UserId
                              };
+
+                if(role?.ToUpper() != "ADMIN" && role?.ToUpper() != "HR")
+                {
+                    result = result.Where(x => x.UserId == long.Parse(userId));
+                }
+
+
+
+
+
+
 
                 return Ok(result);
             }
@@ -83,6 +103,10 @@ namespace HRMS.Controllers
         {
             try
             {
+                // from token 
+                var role = User.FindFirst(ClaimTypes.Role)?.Value;
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
                 if (id <= 0)
                     return BadRequest("Id Value is invalid");
 
@@ -105,6 +129,7 @@ namespace HRMS.Controllers
                     .FirstOrDefault();
 
 
+
                 // Eager loading using Include() wich uses join 
                 var result2 = _dbContext.Employees.Include(x => x.Lookup).Include(x => x.manager).ThenInclude(x => x.Lookup).FirstOrDefault(x => x.Id.Equals(id));
 
@@ -113,6 +138,13 @@ namespace HRMS.Controllers
                 if (result == null)
                     return NotFound("Employee is not found");
 
+                if (role?.ToUpper() != "ADMIN" && role?.ToUpper() != "HR")
+                {
+                    if (result.UserId != long.Parse(userId))
+                    {
+                        return Forbid();
+                    }
+                }
                 return Ok(result2);
             }
             catch (Exception ex)
@@ -122,31 +154,60 @@ namespace HRMS.Controllers
         }
 
 
-
+        [Authorize(Roles = "HR,Admin")] // authorization (to access who can use this endpoint)
         [HttpPost("Add")] // in post methods i don't need the id from the user (i will control the id and not the user )
         public IActionResult Add([FromBody] SaveEmployeeDto employeeDto) // we have to make another Dto for the post process because we shouldn't access the model at any point from the controller 
         {
-            var emp = new Employee() // here we make an object from the model because the list is from type Employee and we put in it the Dto details 
+            try
             {
-                Id = 0,//(emplyoees.LastOrDefault()?.Id ?? 0) + 1,
-                FirstName = employeeDto.FirstName,
-                LastName = employeeDto.LastName,
-                Email = employeeDto.Email,
-                BirthDate = employeeDto.BirthDate,
-                PositionId = employeeDto.PositionId,
-                Salary = employeeDto.Salary,
-                DepartmentId = employeeDto.DepartmentId, 
-                ManagerId = employeeDto.ManagerId
-            };
+                // creating a user with every Employee we add to the system  
+                var user = new User()
+                {
+                    Id = 0,
+                    UserName = $"{employeeDto.FirstName}_{employeeDto.LastName}_HRMS", // Ahmad_Khalid_HRMS
+                    HashedPassword = BCrypt.Net.BCrypt.HashPassword($"{employeeDto.FirstName}@123"), //AHmad@123
+                    IsAdmin = false 
+                }; 
 
-            _dbContext.Employees.Add(emp); // here we added the emp (from type model) but the info from the dto and add it to the list 
-            _dbContext.SaveChanges(); // saving changes (commit)
+                var isUserName = _dbContext.users.Any(x => x.UserName.ToUpper() == user.UserName.ToUpper());
 
-            return Ok(); 
+                if(isUserName)
+                {
+                    return BadRequest("UserName Already Exist, PLease choose another one"); 
+                }
+
+                _dbContext.users.Add(user);
+                _dbContext.SaveChanges();
+
+
+                var emp = new Employee() // here we make an object from the model because the list is from type Employee and we put in it the Dto details 
+                {
+                    Id = 0,//(emplyoees.LastOrDefault()?.Id ?? 0) + 1,
+                    FirstName = employeeDto.FirstName,
+                    LastName = employeeDto.LastName,
+                    Email = employeeDto.Email,
+                    BirthDate = employeeDto.BirthDate,
+                    PositionId = employeeDto.PositionId,
+                    Salary = employeeDto.Salary,
+                    DepartmentId = employeeDto.DepartmentId,
+                    ManagerId = employeeDto.ManagerId,
+                    // UserId = user.Id
+                    User = user
+                };
+
+                _dbContext.Employees.Add(emp); // here we added the emp (from type model) but the info from the dto and add it to the list 
+                _dbContext.SaveChanges(); // saving changes (commit)
+
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
 
-
+        [Authorize(Roles = "HR,Admin")]
         [HttpPut("Edit")]
         public IActionResult Edit([FromBody] SaveEmployeeDto employeeDto) // same parameter as the post method
         {
@@ -184,9 +245,9 @@ namespace HRMS.Controllers
 
 
 
-
+        [Authorize(Roles = "HR,Admin")]
         [HttpDelete("Delete")]
-        public IActionResult Delete(int id)
+        public IActionResult Delete(long id)
         {
             try
             {

@@ -27,15 +27,16 @@ namespace HRMS.Controllers
         {
             try 
             {
-                // Admin, admin, ADMIN 
+                // Admin, admin, ADMIN so er use toupper()
                 var user = _dbcontext.users.FirstOrDefault(x => x.UserName.ToUpper() == loginDto.UserName.ToUpper());
                 
                 if (user == null) // the firstOrDefault will return null (here we verify that the username is in the database)
                 {
-                    return NotFound("Invalid Username Or Password");
+                    return BadRequest("Invalid Username Or Password");
                 }
 
                 // here we checkeed if the password is correct 
+                // we need to decrypt the hashed password to compare it with the user input 
                 if(!(BCrypt.Net.BCrypt.Verify(loginDto.Password, user.HashedPassword)))
                 {
                     return BadRequest("Invalid Username Or Password");
@@ -63,6 +64,7 @@ namespace HRMS.Controllers
             // key ==> value 
             // id --> 1 
             // Name --> admin  
+
             claims.Add(new Claim(ClaimTypes.NameIdentifier, user.Id.ToString())); // instead of writing "id" we will use this class named ClaimTypes.NamrIdentifier
             claims.Add(new Claim(ClaimTypes.Name, user.UserName));
 
