@@ -95,11 +95,53 @@ namespace HRMS.Controllers
             }
         }
 
-
-
-
         [HttpGet("GetById/{id:long}")]
         public IActionResult GetById(long id)
+        {
+            try
+            {
+                if (id <= 0)
+                    return BadRequest("Id Value is invalid");
+
+                // Eager loading everything you need for the DTO
+                var employee = _dbContext.Employees
+                    .Include(x => x.Lookup)           // Position
+                    .Include(x => x.Department)       // Department
+                    .Include(x => x.manager)          // Manager
+                    .FirstOrDefault(x => x.Id == id);
+
+                if (employee == null)
+                    return NotFound("Employee not found");
+
+                // Map to DTO
+                var result = new EmployeeDto
+                {
+                    Id = employee.Id,
+                    Name = employee.FirstName + " " + employee.LastName,
+                    UserId = employee.UserId,
+                    PositionId = employee.PositionId,
+                    PositionName = employee.Lookup?.Name,
+                    BirthDate = employee.BirthDate,
+                    Email = employee.Email,
+                    Salary = employee.Salary,
+                    DepartmentId = employee.DepartmentId,
+                    DepartmentName = employee.Department?.Name,
+                    ManagerId = employee.ManagerId,
+                    ManagerName = employee.manager?.FirstName
+                };
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+
+
+        [HttpGet("GetById2/{id:long}")]
+        public IActionResult GetById2(long id)
         {
             try
             {

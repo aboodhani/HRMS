@@ -73,6 +73,7 @@ namespace HRMS.Controllers
             {
                 claims.Add(new Claim(ClaimTypes.Role, "admin"));
             }
+
             else
             {
                 var employee = _dbcontext.Employees.Include(x => x.Lookup).FirstOrDefault(x => x.UserId == user.Id);

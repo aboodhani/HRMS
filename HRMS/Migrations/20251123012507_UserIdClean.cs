@@ -5,7 +5,7 @@
 namespace HRMS.Migrations
 {
     /// <inheritdoc />
-    public partial class new_userId : Migration
+    public partial class UserIdClean : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -16,16 +16,30 @@ namespace HRMS.Migrations
                 type: "bigint",
                 nullable: true);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_users_Id",
-                table: "users",
-                column: "Id",
-                unique: true);
+            migrationBuilder.AddColumn<long>(
+                name: "TypeId",
+                table: "Departments",
+                type: "bigint",
+                nullable: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Employees_UserId",
                 table: "Employees",
-                column: "UserId");
+                column: "UserId",
+                unique: true,
+                filter: "[UserId] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Departments_TypeId",
+                table: "Departments",
+                column: "TypeId");
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_Departments_Lookups_TypeId",
+                table: "Departments",
+                column: "TypeId",
+                principalTable: "Lookups",
+                principalColumn: "Id");
 
             migrationBuilder.AddForeignKey(
                 name: "FK_Employees_users_UserId",
@@ -39,20 +53,28 @@ namespace HRMS.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropForeignKey(
+                name: "FK_Departments_Lookups_TypeId",
+                table: "Departments");
+
+            migrationBuilder.DropForeignKey(
                 name: "FK_Employees_users_UserId",
                 table: "Employees");
-
-            migrationBuilder.DropIndex(
-                name: "IX_users_Id",
-                table: "users");
 
             migrationBuilder.DropIndex(
                 name: "IX_Employees_UserId",
                 table: "Employees");
 
+            migrationBuilder.DropIndex(
+                name: "IX_Departments_TypeId",
+                table: "Departments");
+
             migrationBuilder.DropColumn(
                 name: "UserId",
                 table: "Employees");
+
+            migrationBuilder.DropColumn(
+                name: "TypeId",
+                table: "Departments");
         }
     }
 }

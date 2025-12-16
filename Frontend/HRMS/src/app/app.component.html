@@ -1,0 +1,29 @@
+<!-- <div class="welcome">
+ // Interpolation (angular will understand that title is a variable)
+  Title : {{title}}
+</div> -->
+<!-- <h3>Before angular 17</h3>
+<div *ngFor="let student of students; index as i">
+  <span style="margin-right: 5px"> {{ i + 1 }} </span>
+  <span [ngClass]='{"passed" : student.mark >= 50, "failed" : student.mark < 50}'> {{ student.name }} </span>
+  <span [ngStyle]="{'color' : student.mark >= 50? 'green' : 'red'}"> {{ student.mark }} </span>
+  <span *ngIf="student.mark >= 50"> succeed</span>
+  <span *ngIf="student.mark < 50"> Failed </span>
+  
+</div> -->
+
+<h3>After angular 17</h3>
+@for(student of students ; track student.id ; let i = $index) {
+<div appRandomColor>
+  <span style="margin-right: 5px"> {{ i + 1 }} </span>
+  <span [class]="student.mark >= 50 ? 'passed' : 'failed'">
+    {{ student.name }}
+  </span>
+  <span> {{ student.mark }} </span>
+  @if (student.mark >= 50) {
+  <span> succeed</span>
+  } @if (student.mark < 50 ) {
+  <span> Failed </span>
+  }
+</div>
+}
